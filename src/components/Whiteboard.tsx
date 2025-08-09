@@ -21,8 +21,26 @@ const Whiteboard = () => {
 
   useEffect(() => {
     const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:5000';
-    const newSocket = io(serverUrl);
+    console.log('Connecting to server:', serverUrl);
+    
+    const newSocket = io(serverUrl, {
+      transports: ['websocket', 'polling'],
+      timeout: 20000,
+    });
     setSocket(newSocket);
+
+    // Connection event handlers
+    newSocket.on('connect', () => {
+      console.log('Connected to server:', newSocket.id);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('Disconnected:', reason);
+    });
 
     // Load existing drawings
     newSocket.on('load-drawings', (drawings: DrawingData[]) => {
@@ -39,6 +57,7 @@ const Whiteboard = () => {
 
     // Listen for drawing events from other users
     newSocket.on('drawing', (data: DrawingData) => {
+      console.log('Received drawing data:', data);
       const canvas = canvasRef.current;
       if (!canvas) return;
       
@@ -106,6 +125,7 @@ const Whiteboard = () => {
     drawLine(ctx, drawingData);
 
     // Send to other users
+    console.log('Sending drawing data:', drawingData);
     socket.emit('drawing', drawingData);
   };
 
