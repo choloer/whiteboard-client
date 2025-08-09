@@ -18,6 +18,8 @@ const Whiteboard = () => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState('#000000');
   const [brushWidth, setBrushWidth] = useState(2);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:5000';
@@ -31,19 +33,27 @@ const Whiteboard = () => {
 
     // Connection event handlers
     newSocket.on('connect', () => {
-      console.log('Connected to server:', newSocket.id);
+      console.log(`[${new Date().toISOString()}] ✅ Connected to server:`, newSocket.id);
+      console.log('Transport:', newSocket.io.engine.transport.name);
+      console.log('Server URL:', serverUrl);
+      setIsConnected(true);
+      setConnectionError(null);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+      console.error(`[${new Date().toISOString()}] ❌ Connection error:`, error);
+      setIsConnected(false);
+      setConnectionError(error.message || 'Connection failed');
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('Disconnected:', reason);
+      console.log(`[${new Date().toISOString()}] 🔌 Disconnected:`, reason);
+      setIsConnected(false);
     });
 
     // Load existing drawings
     newSocket.on('load-drawings', (drawings: DrawingData[]) => {
+      console.log(`[${new Date().toISOString()}] 📥 Received ${drawings.length} existing drawings`);
       const canvas = canvasRef.current;
       if (!canvas) return;
       
@@ -57,7 +67,12 @@ const Whiteboard = () => {
 
     // Listen for drawing events from other users
     newSocket.on('drawing', (data: DrawingData) => {
-      console.log('Received drawing data:', data);
+      console.log(`[${new Date().toISOString()}] 🎨 Received drawing data:`, {
+        x: data.x,
+        y: data.y,
+        color: data.color,
+        width: data.width
+      });
       const canvas = canvasRef.current;
       if (!canvas) return;
       
@@ -125,7 +140,12 @@ const Whiteboard = () => {
     drawLine(ctx, drawingData);
 
     // Send to other users
-    console.log('Sending drawing data:', drawingData);
+    console.log(`[${new Date().toISOString()}] 📤 Sending drawing data:`, {
+      x: drawingData.x,
+      y: drawingData.y,
+      color: drawingData.color,
+      width: drawingData.width
+    });
     socket.emit('drawing', drawingData);
   };
 
@@ -146,6 +166,19 @@ const Whiteboard = () => {
 
   return (
     <div className="flex flex-col items-center p-4">
+      {/* Connection Status */}
+      <div className="mb-4 p-3 rounded-lg border">
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className="text-sm font-medium">
+            {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+          </span>
+        </div>
+        {connectionError && (
+          <div className="text-red-500 text-xs mt-1">Error: {connectionError}</div>
+        )}
+      </div>
+      
       <div className="flex gap-4 mb-4 flex-wrap">
         <div className="flex items-center gap-2">
           <label htmlFor="color" className="text-sm font-medium">
