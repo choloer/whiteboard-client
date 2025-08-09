@@ -74,7 +74,7 @@ const Whiteboard = () => {
     ctx.stroke();
   };
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const startDrawing = () => {
     setIsDrawing(true);
   };
 
